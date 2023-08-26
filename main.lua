@@ -117,20 +117,20 @@ function love.keypressed(k)
   end
 
   -- Move
-  if k == 'a' then
+  if k == 'a' then -- Left
     local new_x = state.pos_x - 1
-
     if can_move(new_x, state.pos_y, state.rotation) then
       state.pos_x = new_x
     end
-  elseif k == 'd' then
+  elseif k == 'd' then -- Right
     local new_x = state.pos_x + 1
     if can_move(new_x, state.pos_y, state.rotation) then
       state.pos_x = new_x
     end
-  elseif k == 's' then
+  elseif k == 's' then -- Drop
     while can_move(state.pos_x, state.pos_y + 1, state.rotation) do
       state.pos_y = state.pos_y + 1
+      state.timer = 0.5
     end
   end
 
@@ -184,6 +184,29 @@ function love.update(dt)
           local block = tiles[state.tile][state.rotation][y][x]
           if block ~= ' ' then
             inert[state.pos_y + y][state.pos_x + x] = block
+          end
+        end
+      end
+
+      -- Complete rows
+      for y = 1, grid.y_count do
+        local complete = true
+        for x = 1, grid.x_count do
+          if inert[y][x] == ' ' then
+            complete = false
+            break
+          end
+        end
+
+        if complete then
+          for ry = y, 2, -1 do
+            for rx = 1, grid.x_count do
+              inert[ry][rx] = inert[ry - 1][rx]
+            end
+          end
+
+          for rx = 1, grid.x_count do
+            inert[1][rx] = ' '
           end
         end
       end
