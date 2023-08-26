@@ -27,10 +27,16 @@ function love.load()
 
   -- Music by DOS-88
   -- https://www.youtube.com/user/AntiMulletpunk
-  _G.bg_music = love.audio.newSource('assets/Billy\'s Sacrifice.mp3', 'static')
-  bg_music:setVolume(0.2)
-  bg_music:setLooping(true)
-  bg_music:play()
+  -- SFX by phoenix1291
+  -- https://phoenix1291.itch.io/sound-effects-mini-pack1-5
+  _G.sfx = {
+    bg_music = love.audio.newSource('assets/Billy\'s Sacrifice.mp3', 'static'),
+    warp = love.audio.newSource('assets/1up2.ogg', 'static'),
+    score = love.audio.newSource('assets/Hit1.ogg', 'static')
+  }
+  sfx.bg_music:setVolume(0.2)
+  sfx.bg_music:setLooping(true)
+  sfx.bg_music:play()
 
   -- Chromatic aberration shader
   _G.shaders = {
@@ -133,6 +139,11 @@ function love.load()
     flux.to(score_feedback, .1, { scale = 3, opacity = 1 })
         :after(score_feedback, .1, { scale = 4, opacity = 0 }):delay(state.max_warp_duration)
         :after(score_feedback, 0, { scale = 5 })
+    if n < 4 then
+      sfx.score:play()
+    else
+      sfx.warp:play()
+    end
   end
 
   function _G.can_move(pos_x, pos_y, r)
@@ -242,15 +253,19 @@ function love.keypressed(k)
 
   -- Music
   if k == "m" then
-    if bg_music:getVolume() > 0 then
-      bg_music:setVolume(0)
+    if sfx.bg_music:getVolume() > 0 then
+      sfx.bg_music:setVolume(0)
     else
-      bg_music:setVolume(0.2)
+      sfx.bg_music:setVolume(0.2)
     end
   elseif k == "left" then
-    bg_music:setVolume(math.min(bg_music:getVolume() - .2, 1))
+    sfx.bg_music:setVolume(math.min(sfx.bg_music:getVolume() - .2, 1))
   elseif k == "right" then
-    bg_music:setVolume(math.min(bg_music:getVolume() + .2, 1))
+    sfx.bg_music:setVolume(math.min(sfx.bg_music:getVolume() + .2, 1))
+  end
+
+  if k == "w" then
+    update_score(4)
   end
 end
 
@@ -435,7 +450,7 @@ function love.draw()
   -- Volume bar
   love.graphics.setColor(1, 1, 1)
   local volume_w = block_size / 4
-  for i = 1, bg_music:getVolume() * 10 do
+  for i = 1, sfx.bg_music:getVolume() * 10 do
     love.graphics.rectangle('fill', (i - 1) * (volume_w + 2), 0, volume_w, block_size)
   end
 
