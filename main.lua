@@ -1,5 +1,6 @@
 require('tiles')
 require('love')
+_G.flux = require('lib.flux.flux')
 
 function love.load()
   love.graphics.setDefaultFilter("nearest", "nearest")
@@ -26,7 +27,7 @@ function love.load()
   -- Music by DOS-88
   -- https://www.youtube.com/user/AntiMulletpunk
   _G.bg_music = love.audio.newSource('assets/Billy\'s Sacrifice.mp3', 'static')
-  bg_music:setVolume(0)
+  bg_music:setVolume(.2)
   bg_music:play()
 
   -- Chromatic aberration shader
@@ -64,16 +65,43 @@ function love.load()
     pos_y = 0,
     rotation = 1,
     score = 0,
+    min_camera_speed = 10,
+    max_camera_speed = 500,
+    camera_speed = 10,
     camera_y = 0,
     shake_duration = 0,
     shake_wait = 0,
-    shake_offset = { x = 0, y = 0 }
+    shake_offset = { x = 0, y = 0 },
+    warping = false,
+    warping_duration = 1,
   }
+
+  local text_scores = { "BOOSTING", "LIGHTSPEED", "HYPERSPEED", "WARPING" }
+  _G.score_feedback = { text = "", scale = 5, opacity = 0, rotation = 0 }
 
   function _G.update_score(n)
     local scores = { 40, 100, 300, 1200 }
     state.score = state.score + scores[n]
     state.shake_duration = .2
+
+    state.camera_speed = math.min(state.camera_speed + scores[n] / 10, state.max_camera_speed)
+
+    -- Update text
+    score_feedback.text = text_scores[n]
+    flux.to(score_feedback, .1, { scale = 3, opacity = 1 })
+        :after(score_feedback, .1, { scale = 4, opacity = 0 }):delay(1)
+        :after(score_feedback, 0, { scale = 5 })
+
+    -- Special effect for rare score
+    if n == 4 then -- Warp
+      state.warping = true
+      -- Keep previous speed
+      local prev_speed = state.camera_speed
+      -- Set to minimum speed, then quickly move to "hyperspeed"
+      flux.to(state, 0, { camera_speed = state.min_camera_speed })
+          :after(state, state.warping_duration, { camera_speed = 100 })
+          :after(state, .1, { camera_speed = prev_speed })
+    end
   end
 
   function _G.can_move(pos_x, pos_y, r)
@@ -149,6 +177,7 @@ function love.keypressed(k)
     local new_x = state.pos_x + 1
     if can_move(new_x, state.pos_y, state.rotation) then
       state.pos_x = new_x
+      update_score(4)
     end
   elseif k == 's' then -- Drop
     while can_move(state.pos_x, state.pos_y + 1, state.rotation) do
@@ -193,9 +222,11 @@ function love.keypressed(k)
 end
 
 function love.update(dt)
-  state.camera_y = state.camera_y + (state.score / 10 + 10) * dt
+  flux.update(dt)
+  state.camera_y = state.camera_y + state.camera_speed * dt
   state.timer = state.timer + dt
 
+  -- Screenshake
   if state.shake_duration > 0 then
     state.shake_duration = state.shake_duration - dt
     if state.shake_wait > 0 then
@@ -204,6 +235,16 @@ function love.update(dt)
       state.shake_offset.x = love.math.random(-5, 5)
       state.shake_offset.y = love.math.random(-5, 5)
       state.shake_wait = 0.05
+    end
+  end
+
+  -- Warping
+  if state.warping then
+    if state.warping_duration > 0 then
+      state.warping_duration = state.warping_duration - dt
+    elseif state.warping_duration < 0 then
+      state.warping_duration = 1
+      state.warping = false
     end
   end
 
@@ -291,8 +332,9 @@ function love.draw()
       return
     end
 
+    local border = 2
     local color = colors[block]
-    local block_draw_size = block_size - 1
+    local block_draw_size = block_size - border
 
     love.graphics.setColor(color)
     love.graphics.rectangle(
@@ -305,7 +347,9 @@ function love.draw()
   end
 
   love.graphics.setCanvas(background)
-  love.graphics.clear()
+  if not state.warping then
+    love.graphics.clear()
+  end
   -- Background
   love.graphics.setColor(1, 1, 1)
   for i = 1, #stars do
@@ -330,6 +374,8 @@ function love.draw()
   end
 
   -- Grid
+  love.graphics.setColor(0, 0, 0)
+  love.graphics.rectangle("fill", x_offset, y_offset, block_size * grid.x_count, block_size * grid.y_count)
   for y = 1, grid.y_count do
     for x = 1, grid.x_count do
       draw_block(inert[y][x], x, y, true)
@@ -379,6 +425,22 @@ function love.draw()
   end
   love.graphics.pop()
   love.graphics.setColor(1, 1, 1)
+
+  love.graphics.push()
+  love.graphics.setColor(1, 1, 1, score_feedback.opacity)
+  love.graphics.print(
+    score_feedback.text,
+    window.w / 2,
+    window.h / 2,
+    score_feedback.rotation,
+    score_feedback.scale,
+    score_feedback.scale,
+    (font:getWidth(score_feedback.text) / 2),
+    (font:getHeight() / 2)
+  )
+  love.graphics.pop()
+  love.graphics.setColor(1, 1, 1)
+
 
   love.graphics.setCanvas()
 
