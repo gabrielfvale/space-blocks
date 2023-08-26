@@ -5,17 +5,6 @@ function love.load()
   love.graphics.setDefaultFilter("nearest", "nearest")
   love.graphics.setBackgroundColor(0, 0, 0)
 
-  -- Monogram font
-  -- https://datagoblin.itch.io/monogram
-  local font = love.graphics.newFont('assets/monogram.ttf', 40)
-  love.graphics.setFont(font)
-
-  -- Music by DOS-88
-  -- https://www.youtube.com/user/AntiMulletpunk
-  _G.bg_music = love.audio.newSource('assets/Billy\'s Sacrifice.mp3', 'static')
-  bg_music:setVolume(0)
-  bg_music:play()
-
   _G.grid = {
     x_count = 10,
     y_count = 18
@@ -24,6 +13,25 @@ function love.load()
   _G.window = {
     w = love.graphics.getWidth(),
     h = love.graphics.getHeight(),
+  }
+
+  _G.background = love.graphics.newCanvas(window.w, window.h)
+  _G.foreground = love.graphics.newCanvas(window.w, window.h)
+
+  -- Monogram font
+  -- https://datagoblin.itch.io/monogram
+  _G.font = love.graphics.newFont('assets/monogram.ttf', 40)
+  love.graphics.setFont(font)
+
+  -- Music by DOS-88
+  -- https://www.youtube.com/user/AntiMulletpunk
+  _G.bg_music = love.audio.newSource('assets/Billy\'s Sacrifice.mp3', 'static')
+  bg_music:setVolume(0)
+  bg_music:play()
+
+  -- Chromatic aberration shader
+  _G.shaders = {
+    chromatic_aberration = love.graphics.newShader("shaders/chromatic_aberration.frag"),
   }
 
   -- Calculate offsets and block size
@@ -50,19 +58,22 @@ function love.load()
   end
 
   _G.state = {
+    timer = 0,
     tile = love.math.random(#tiles),
-    rotation = 1,
     pos_x = 0,
     pos_y = 0,
-    timer = 0,
+    rotation = 1,
+    score = 0,
     camera_y = 0,
-    camera_speed = 10,
-    score = 0
+    shake_duration = 0,
+    shake_wait = 0,
+    shake_offset = { x = 0, y = 0 }
   }
 
   function _G.update_score(n)
     local scores = { 40, 100, 300, 1200 }
     state.score = state.score + scores[n]
+    state.shake_duration = .2
   end
 
   function _G.can_move(pos_x, pos_y, r)
@@ -182,8 +193,19 @@ function love.keypressed(k)
 end
 
 function love.update(dt)
-  state.camera_y = state.camera_y + state.camera_speed * dt
+  state.camera_y = state.camera_y + (state.score / 10 + 10) * dt
   state.timer = state.timer + dt
+
+  if state.shake_duration > 0 then
+    state.shake_duration = state.shake_duration - dt
+    if state.shake_wait > 0 then
+      state.shake_wait = state.shake_wait - dt
+    else
+      state.shake_offset.x = love.math.random(-5, 5)
+      state.shake_offset.y = love.math.random(-5, 5)
+      state.shake_wait = 0.05
+    end
+  end
 
   if not can_move(state.pos_x, state.pos_y, state.rotation) then
     reset()
@@ -272,7 +294,6 @@ function love.draw()
     local color = colors[block]
     local block_draw_size = block_size - 1
 
-    love.graphics.push()
     love.graphics.setColor(color)
     love.graphics.rectangle(
       'fill',
@@ -281,11 +302,11 @@ function love.draw()
       block_draw_size,
       block_draw_size
     )
-    love.graphics.pop()
   end
 
+  love.graphics.setCanvas(background)
+  love.graphics.clear()
   -- Background
-  love.graphics.push()
   love.graphics.setColor(1, 1, 1)
   for i = 1, #stars do
     local proj = stars[i][3] / star_max_depth
@@ -298,7 +319,15 @@ function love.draw()
       star_proj_size
     )
   end
-  love.graphics.pop()
+
+  love.graphics.setCanvas(foreground)
+  love.graphics.clear()
+
+  love.graphics.push()
+  -- Screen shake
+  if state.shake_duration > 0 then
+    love.graphics.translate(state.shake_offset.x, state.shake_offset.y)
+  end
 
   -- Grid
   for y = 1, grid.y_count do
@@ -316,18 +345,14 @@ function love.draw()
 
   -- UI --
   -- Volume bar
-  love.graphics.push()
   love.graphics.setColor(1, 1, 1)
   local volume_w = block_size / 4
   for i = 1, bg_music:getVolume() * 10 do
     love.graphics.rectangle('fill', (i - 1) * (volume_w + 2), 0, volume_w, block_size)
   end
-  love.graphics.pop()
 
   local x_col_offset = 2
   -- Score
-  love.graphics.push()
-  love.graphics.setColor(1, 1, 1)
   love.graphics.print(
     "SCORE",
     block_size * (grid.x_count + x_col_offset) + x_offset,
@@ -344,7 +369,6 @@ function love.draw()
     block_size * (grid.x_count + x_col_offset) + x_offset,
     y_offset + block_size * 8
   )
-  love.graphics.pop()
   for y = 1, 4 do
     for x = 1, 4 do
       local block = tiles[sequence[#sequence]][1][y][x]
@@ -353,4 +377,16 @@ function love.draw()
       end
     end
   end
+  love.graphics.pop()
+  love.graphics.setColor(1, 1, 1)
+
+  love.graphics.setCanvas()
+
+
+  love.graphics.draw(background)
+  if state.shake_duration > 0 then
+    love.graphics.setShader(shaders.chromatic_aberration)
+  end
+  love.graphics.draw(foreground)
+  love.graphics.setShader()
 end
