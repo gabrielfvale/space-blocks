@@ -3,7 +3,19 @@ require('love')
 
 function love.load()
   math.randomseed(os.time())
+  love.graphics.setDefaultFilter("nearest", "nearest")
   love.graphics.setBackgroundColor(0, 0, 0)
+
+  -- Monogram font
+  -- https://datagoblin.itch.io/monogram
+  local font = love.graphics.newFont('assets/monogram.ttf', 40)
+  love.graphics.setFont(font)
+
+  -- Music by DOS-88
+  -- https://www.youtube.com/user/AntiMulletpunk
+  _G.bg_music = love.audio.newSource('assets/Billy\'s Sacrifice.mp3', 'static')
+  bg_music:setVolume(.2)
+  bg_music:play()
 
   _G.grid = {
     x_count = 10,
@@ -113,6 +125,20 @@ function love.keypressed(k)
       state.rotation = new_rotation
     end
   end
+
+  -- Music
+  if k == "m" then
+    if bg_music:getVolume() > 0 then
+      bg_music:setVolume(0)
+    else
+      bg_music:setVolume(0.2)
+    end
+  elseif k == "left" then
+    bg_music:setVolume(math.min(bg_music:getVolume() - .2, 1))
+    print(bg_music:getVolume())
+  elseif k == "right" then
+    bg_music:setVolume(math.min(bg_music:getVolume() + .2, 1))
+  end
 end
 
 function love.update(dt)
@@ -166,7 +192,7 @@ function love.draw()
     )
   end
 
-  -- Draw background
+  -- Background
   love.graphics.push()
   love.graphics.setColor(1, 1, 1)
   for i = 1, #stars do
@@ -174,13 +200,22 @@ function love.draw()
   end
   love.graphics.pop()
 
-  -- Draw grid
+  -- Volume bar
+  love.graphics.push()
+  love.graphics.setColor(1, 1, 1)
+  local volume_w = block_size / 4
+  for i = 1, bg_music:getVolume() * 10 do
+    love.graphics.rectangle('fill', (i - 1) * (volume_w + 2), 0, volume_w, block_size)
+  end
+  love.graphics.pop()
+
+  -- Grid
   for y = 1, grid.y_count do
     for x = 1, grid.x_count do
       draw_block(inert[y][x], x, y, true)
     end
   end
-  -- Draw piece
+  -- Piece
   for y = 1, 4 do
     for x = 1, 4 do
       local block = pieces[state.piece][state.rotation][y][x]
