@@ -27,7 +27,7 @@ function love.load()
   -- Music by DOS-88
   -- https://www.youtube.com/user/AntiMulletpunk
   _G.bg_music = love.audio.newSource('assets/Billy\'s Sacrifice.mp3', 'static')
-  bg_music:setVolume(.2)
+  bg_music:setVolume(0)
   bg_music:play()
 
   -- Chromatic aberration shader
@@ -80,7 +80,7 @@ function love.load()
 
     previous_warp = 0,
     warping = false,
-    warping_duration = 1,
+    warp_duration = 1,
   }
 
   local text_scores = { "BOOSTING", "ULTRASPEED", "LIGHTSPEED", "WARPING" }
@@ -89,21 +89,26 @@ function love.load()
   function _G.update_score(n)
     local scores = { 40, 100, 300, 1200 }
     state.score = state.score + scores[n]
-    state.shake_duration = .2
     score_feedback.text = text_scores[n]
 
+    -- Start screen shake
+    state.shake_duration = .2
+
+    -- Update camera speed based on score
     state.camera_speed = math.min(state.camera_speed + scores[n] / 10, state.max_camera_speed)
 
     -- Special effect for each 1000 points
     if state.score - state.previous_warp >= 1000 then
       score_feedback.text = text_scores[4]
       state.previous_warp = state.previous_warp + 1000
+      local duration = 1 -- in seconds
       state.warping = true
+      state.warp_duration = duration
       -- Keep previous speed
       local prev_speed = state.camera_speed
       -- Set to minimum speed, then quickly move to "hyperspeed"
       flux.to(state, 0, { camera_speed = state.min_camera_speed })
-          :after(state, state.warping_duration, { camera_speed = 100 })
+          :after(state, duration, { camera_speed = 100 })
           :after(state, .1, { camera_speed = prev_speed })
     end
 
@@ -119,6 +124,7 @@ function love.load()
         local test_x = pos_x + x
         local test_y = pos_y + y
 
+        -- Check for solid blocks
         if tiles[state.tile][r][y][x] ~= ' '
             and (
               (test_x) < 1 or              -- Left
@@ -133,6 +139,7 @@ function love.load()
     return true
   end
 
+  -- Creates a random tile sequence
   function _G.new_sequence()
     _G.sequence = {}
     for tile_index = 1, #tiles do
@@ -153,7 +160,6 @@ function love.load()
   end
 
   function _G.reset()
-    --
     _G.inert = {}
     for y = 1, grid.y_count do
       inert[y] = {}
@@ -165,8 +171,9 @@ function love.load()
     generate_stars()
     new_sequence()
     reset_tile()
-
     state.timer = 0
+    state.camera_speed = 10
+    state.camera_y = 0
   end
 
   reset()
@@ -233,6 +240,11 @@ end
 
 function love.update(dt)
   flux.update(dt)
+  if not can_move(state.pos_x, state.pos_y, state.rotation) then
+    reset()
+  end
+
+  -- Update camera and timer
   state.camera_y = state.camera_y + state.camera_speed * dt
   state.timer = state.timer + dt
 
@@ -250,22 +262,20 @@ function love.update(dt)
 
   -- Warping
   if state.warping then
-    if state.warping_duration > 0 then
-      state.warping_duration = state.warping_duration - dt
-    elseif state.warping_duration < 0 then
-      state.warping_duration = 1
+    if state.warp_duration > 0 then
+      state.warp_duration = state.warp_duration - dt
+    elseif state.warp_duration < 0 then
+      state.warp_duration = 0
       state.warping = false
       generate_stars()
     end
   end
 
-  if not can_move(state.pos_x, state.pos_y, state.rotation) then
-    reset()
-  end
-
+  -- Main game logic
   if state.timer >= 0.5 then
-    state.timer = 0
+    state.timer = 0 -- reset timer every half second
     local new_y = state.pos_y + 1
+    -- check for tile movement
     if can_move(state.pos_x, new_y, state.rotation) then
       state.pos_y = new_y
     else
@@ -357,11 +367,11 @@ function love.draw()
     )
   end
 
+  -- Background
   love.graphics.setCanvas(background)
   if not state.warping then
     love.graphics.clear()
   end
-  -- Background
   love.graphics.setColor(1, 1, 1)
   for i = 1, #stars do
     local proj = stars[i][3] / star_max_depth
@@ -375,10 +385,11 @@ function love.draw()
     )
   end
 
+  -- Foreground
   love.graphics.setCanvas(foreground)
   love.graphics.clear()
-
   love.graphics.push()
+
   -- Screen shake
   if state.shake_duration > 0 then
     love.graphics.translate(state.shake_offset.x, state.shake_offset.y)
@@ -437,6 +448,7 @@ function love.draw()
   love.graphics.pop()
   love.graphics.setColor(1, 1, 1)
 
+  -- Feedback text
   love.graphics.push()
   love.graphics.setColor(1, 1, 1, score_feedback.opacity)
   love.graphics.print(
