@@ -42,8 +42,11 @@ function love.load()
   end
 
   _G.state = {
-    next_piece = math.random(#pieces),
-    rotation = 1
+    piece = math.random(#pieces),
+    rotation = 1,
+    pos_x = 0,
+    pos_y = 0,
+    timer = 0
   }
 end
 
@@ -51,10 +54,33 @@ function love.keypressed(k)
   if k == "escape" then
     love.event.push('quit')
   end
+
+  -- Move
+  if k == 'a' then
+    state.pos_x = state.pos_x - 1
+  elseif k == 'd' then
+    state.pos_x = state.pos_x + 1
+  end
+  -- Rotate
+  if k == "x" then
+    state.rotation = state.rotation + 1
+    if state.rotation > #pieces[state.piece] then
+      state.rotation = 1
+    end
+  elseif k == "z" then
+    state.rotation = state.rotation - 1
+    if state.rotation < 1 then
+      state.rotation = #pieces[state.piece]
+    end
+  end
 end
 
 function love.update(dt)
-  math.random()
+  state.timer = state.timer + dt
+  if state.timer >= 0.5 then
+    state.timer = 0
+    state.pos_y = state.pos_y + 1
+  end
 end
 
 function love.draw()
@@ -66,7 +92,8 @@ function love.draw()
     }
   end
 
-  local function draw_block(block, x, y)
+  local function draw_block(block, x, y, grid)
+    grid = grid or false
     -- https://flatuicolors.com/palette/ca
     local colors = {
       [' '] = { .5, .5, .5 },
@@ -78,6 +105,11 @@ function love.draw()
       t = rgb(29, 209, 161),
       z = rgb(52, 31, 151),
     }
+    -- Ignore empty blocks if not in grid
+    if block == ' ' and not grid then
+      return
+    end
+
     local color = colors[block]
     love.graphics.setColor(color)
 
@@ -102,14 +134,14 @@ function love.draw()
   -- Draw grid
   for y = 1, grid.y_count do
     for x = 1, grid.x_count do
-      draw_block(inert[y][x], x, y)
+      draw_block(inert[y][x], x, y, true)
     end
   end
   -- Draw piece
   for y = 1, 4 do
     for x = 1, 4 do
-      local block = pieces[state.next_piece][state.rotation][y][x]
-      draw_block(block, x, y)
+      local block = pieces[state.piece][state.rotation][y][x]
+      draw_block(block, x + state.pos_x, y + state.pos_y)
     end
   end
 end
