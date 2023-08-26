@@ -1,8 +1,7 @@
-require('blocks')
+require('tiles')
 require('love')
 
 function love.load()
-  math.randomseed(os.time())
   love.graphics.setDefaultFilter("nearest", "nearest")
   love.graphics.setBackgroundColor(0, 0, 0)
 
@@ -14,7 +13,7 @@ function love.load()
   -- Music by DOS-88
   -- https://www.youtube.com/user/AntiMulletpunk
   _G.bg_music = love.audio.newSource('assets/Billy\'s Sacrifice.mp3', 'static')
-  bg_music:setVolume(.2)
+  bg_music:setVolume(0)
   bg_music:play()
 
   _G.grid = {
@@ -44,9 +43,9 @@ function love.load()
   _G.stars = {}
   for i = 0, total_stars do
     table.insert(stars, {
-      math.random(window.w),                      -- x
-      math.random(window.h),                      -- y
-      math.random(star_min_depth, star_max_depth) -- z
+      love.math.random(window.w),                      -- x
+      love.math.random(window.h),                      -- y
+      love.math.random(star_min_depth, star_max_depth) -- z
     })
   end
 
@@ -60,7 +59,7 @@ function love.load()
   end
 
   _G.state = {
-    piece = math.random(#pieces),
+    tile = love.math.random(#tiles),
     rotation = 1,
     pos_x = 0,
     pos_y = 0,
@@ -69,13 +68,13 @@ function love.load()
     camera_speed = 10
   }
 
-  function can_move(pos_x, pos_y, r)
+  function _G.can_move(pos_x, pos_y, r)
     for y = 1, 4 do
       for x = 1, 4 do
         local test_x = pos_x + x
         local test_y = pos_y + y
 
-        if pieces[state.piece][r][y][x] ~= ' '
+        if tiles[state.tile][r][y][x] ~= ' '
             and (
               (test_x) < 1 or              -- Left
               (test_x) > grid.x_count or   -- Right
@@ -88,6 +87,28 @@ function love.load()
     end
     return true
   end
+
+  function _G.new_sequence()
+    _G.sequence = {}
+    for tile_index = 1, #tiles do
+      local pos = love.math.random(#sequence + 1)
+      table.insert(sequence, pos, tile_index)
+    end
+  end
+
+  function _G.reset_tile()
+    state.tile = table.remove(sequence)
+    state.rotation = 1
+    state.pos_x = (grid.x_count - 4) / 2
+    state.pos_y = -1
+
+    if #sequence == 0 then
+      new_sequence()
+    end
+  end
+
+  new_sequence()
+  reset_tile()
 end
 
 function love.keypressed(k)
@@ -116,7 +137,7 @@ function love.keypressed(k)
   -- Rotate
   if k == "x" then
     local new_rotation = state.rotation + 1
-    if new_rotation > #pieces[state.piece] then
+    if new_rotation > #tiles[state.tile] then
       new_rotation = 1
     end
 
@@ -126,7 +147,7 @@ function love.keypressed(k)
   elseif k == "z" then
     local new_rotation = state.rotation - 1
     if new_rotation < 1 then
-      new_rotation = #pieces[state.piece]
+      new_rotation = #tiles[state.tile]
     end
 
     if can_move(state.pos_x, state.pos_y, new_rotation) then
@@ -156,6 +177,17 @@ function love.update(dt)
     local new_y = state.pos_y + 1
     if can_move(state.pos_x, new_y, state.rotation) then
       state.pos_y = new_y
+    else
+      -- Add to fixed table
+      for y = 1, 4 do
+        for x = 1, 4 do
+          local block = tiles[state.tile][state.rotation][y][x]
+          if block ~= ' ' then
+            inert[state.pos_y + y][state.pos_x + x] = block
+          end
+        end
+      end
+      reset_tile()
     end
   end
 end
@@ -234,7 +266,7 @@ function love.draw()
   -- Piece
   for y = 1, 4 do
     for x = 1, 4 do
-      local block = pieces[state.piece][state.rotation][y][x]
+      local block = tiles[state.tile][state.rotation][y][x]
       draw_block(block, x + state.pos_x, y + state.pos_y)
     end
   end
