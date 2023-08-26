@@ -164,7 +164,7 @@ function love.keypressed(k)
       new_rotation = 1
     end
 
-    if can_move(state.pos_x, state.pos_y, new_rotation) then
+    if state.pos_y >= 0 and can_move(state.pos_x, state.pos_y, new_rotation) then
       state.rotation = new_rotation
     end
   elseif k == "z" then
@@ -173,7 +173,7 @@ function love.keypressed(k)
       new_rotation = #tiles[state.tile]
     end
 
-    if can_move(state.pos_x, state.pos_y, new_rotation) then
+    if state.pos_y >= 0 and can_move(state.pos_x, state.pos_y, new_rotation) then
       state.rotation = new_rotation
     end
   end
