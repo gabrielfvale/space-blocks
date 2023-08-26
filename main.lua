@@ -38,10 +38,16 @@ function love.load()
 
   -- Background
   _G.star_size = math.floor(block_size / 10)
+  _G.star_max_depth = 50
+  _G.star_min_depth = 15
   local total_stars = math.floor((window.w + window.h) / 16)
   _G.stars = {}
   for i = 0, total_stars do
-    table.insert(stars, { math.random(window.w), math.random(window.h) })
+    table.insert(stars, {
+      math.random(window.w),                      -- x
+      math.random(window.h),                      -- y
+      math.random(star_min_depth, star_max_depth) -- z
+    })
   end
 
   --
@@ -58,7 +64,9 @@ function love.load()
     rotation = 1,
     pos_x = 0,
     pos_y = 0,
-    timer = 0
+    timer = 0,
+    camera_y = 0,
+    camera_speed = 10
   }
 
   function can_move(pos_x, pos_y, r)
@@ -135,13 +143,13 @@ function love.keypressed(k)
     end
   elseif k == "left" then
     bg_music:setVolume(math.min(bg_music:getVolume() - .2, 1))
-    print(bg_music:getVolume())
   elseif k == "right" then
     bg_music:setVolume(math.min(bg_music:getVolume() + .2, 1))
   end
 end
 
 function love.update(dt)
+  state.camera_y = state.camera_y + state.camera_speed * dt
   state.timer = state.timer + dt
   if state.timer >= 0.5 then
     state.timer = 0
@@ -196,7 +204,15 @@ function love.draw()
   love.graphics.push()
   love.graphics.setColor(1, 1, 1)
   for i = 1, #stars do
-    love.graphics.rectangle('fill', stars[i][1], stars[i][2], star_size, star_size)
+    local proj = stars[i][3] / star_max_depth
+    local star_proj_size = star_size / proj
+    love.graphics.rectangle('fill',
+      stars[i][1],
+      ((stars[i][2] + state.camera_y) / proj + star_size / 2) %
+      (window.h + star_size) - star_size / 2, -- math to wrap around top
+      star_proj_size,
+      star_proj_size
+    )
   end
   love.graphics.pop()
 
