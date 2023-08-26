@@ -37,6 +37,7 @@ function love.load()
     pos_y = 0,
     rotation = 1,
     score = 0,
+    gravity = 1,
 
     min_camera_speed = 10,
     max_camera_speed = 500,
@@ -225,11 +226,6 @@ function love.keypressed(k)
     if can_move(new_x, state.pos_y, state.rotation) then
       state.pos_x = new_x
     end
-  elseif k == 's' then -- Drop
-    while can_move(state.pos_x, state.pos_y + 1, state.rotation) do
-      state.pos_y = state.pos_y + 1
-      state.timer = 0.5
-    end
   end
 
   -- Rotate
@@ -279,7 +275,7 @@ function love.update(dt)
 
   -- Update camera and timer
   state.camera_y = state.camera_y + state.camera_speed * dt
-  state.timer = state.timer + dt
+  state.timer = state.timer + state.gravity * dt
 
   -- Screenshake
   if state.shake_duration > 0 then
@@ -325,6 +321,13 @@ function love.update(dt)
       state.warp_color = { 1, 1, 1 }
       generate_stars()
     end
+  end
+
+  -- Drop
+  if love.keyboard.isDown('s') then
+    state.gravity = 20
+  else
+    state.gravity = 1
   end
 
   -- Main game logic
