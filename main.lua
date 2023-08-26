@@ -1,6 +1,7 @@
 require('tiles')
 require('love')
 _G.flux = require('lib.flux.flux')
+local util = require('util')
 
 function love.load()
   love.graphics.setDefaultFilter("nearest", "nearest")
@@ -27,7 +28,7 @@ function love.load()
   -- Music by DOS-88
   -- https://www.youtube.com/user/AntiMulletpunk
   _G.bg_music = love.audio.newSource('assets/Billy\'s Sacrifice.mp3', 'static')
-  bg_music:setVolume(0)
+  bg_music:setVolume(0.2)
   bg_music:play()
 
   -- Chromatic aberration shader
@@ -61,6 +62,19 @@ function love.load()
     end
   end
 
+  -- https://flatuicolors.com/palette/ca
+  _G.color_keys = { 'i', 'j', 'l', 'o', 's', 't', 'z' }
+  _G.colors = {
+    [' '] = util.rgb(26, 26, 26),
+    i = util.rgb(72, 219, 251),
+    j = util.rgb(255, 107, 107),
+    l = util.rgb(255, 159, 243),
+    o = util.rgb(95, 39, 205),
+    s = util.rgb(0, 210, 211),
+    t = util.rgb(29, 209, 161),
+    z = util.rgb(52, 31, 151),
+  }
+
   _G.state = {
     timer = 0,
     tile = love.math.random(#tiles),
@@ -80,7 +94,9 @@ function love.load()
 
     previous_warp = 0,
     warping = false,
-    warp_duration = 1,
+    max_warp_duration = 1,
+    warp_duration = 0,
+    warp_color = { 1, 1, 1 }
   }
 
   local text_scores = { "BOOSTING", "ULTRASPEED", "LIGHTSPEED", "WARPING" }
@@ -101,20 +117,20 @@ function love.load()
     if state.score - state.previous_warp >= 1000 then
       score_feedback.text = text_scores[4]
       state.previous_warp = state.previous_warp + 1000
-      local duration = 1 -- in seconds
       state.warping = true
-      state.warp_duration = duration
+      state.shake_duration = state.max_warp_duration
+      state.warp_duration = state.max_warp_duration
       -- Keep previous speed
       local prev_speed = state.camera_speed
       -- Set to minimum speed, then quickly move to "hyperspeed"
       flux.to(state, 0, { camera_speed = state.min_camera_speed })
-          :after(state, duration, { camera_speed = 100 })
+          :after(state, state.max_warp_duration, { camera_speed = 100 })
           :after(state, .1, { camera_speed = prev_speed })
     end
 
     -- Update text
     flux.to(score_feedback, .1, { scale = 3, opacity = 1 })
-        :after(score_feedback, .1, { scale = 4, opacity = 0 }):delay(1)
+        :after(score_feedback, .1, { scale = 4, opacity = 0 }):delay(state.max_warp_duration)
         :after(score_feedback, 0, { scale = 5 })
   end
 
@@ -194,7 +210,6 @@ function love.keypressed(k)
     local new_x = state.pos_x + 1
     if can_move(new_x, state.pos_y, state.rotation) then
       state.pos_x = new_x
-      update_score(3)
     end
   elseif k == 's' then -- Drop
     while can_move(state.pos_x, state.pos_y + 1, state.rotation) do
@@ -263,10 +278,33 @@ function love.update(dt)
   -- Warping
   if state.warping then
     if state.warp_duration > 0 then
+      -- Color
+      -- Duration of each color
+      local duration = state.max_warp_duration / #color_keys
+      -- Go from min - max
+      local reversed = state.max_warp_duration - state.warp_duration
+
+      -- Calculate current and next index
+      -- math.max used as first value of reversed = 0
+      local index = math.max(math.ceil(reversed / duration), 1)
+      local next = index + 1
+      if next > #color_keys then
+        next = 1
+      end
+
+      -- This took way longer than I'd like to admit
+      local elapsed_time = (reversed - ((index - 1) * duration)) / duration
+      -- Lerp between colors
+      state.warp_color = util.lerpRGB(
+        colors[color_keys[index]],
+        colors[color_keys[next]],
+        elapsed_time
+      )
       state.warp_duration = state.warp_duration - dt
     elseif state.warp_duration < 0 then
       state.warp_duration = 0
       state.warping = false
+      state.warp_color = { 1, 1, 1 }
       generate_stars()
     end
   end
@@ -327,27 +365,8 @@ function love.update(dt)
 end
 
 function love.draw()
-  local function rgb(r, g, b)
-    return {
-      r / 255,
-      g / 255,
-      b / 255,
-    }
-  end
-
   local function draw_block(block, x, y, grid)
     grid = grid or false
-    -- https://flatuicolors.com/palette/ca
-    local colors = {
-      [' '] = rgb(26, 26, 26),
-      i = rgb(72, 219, 251),
-      j = rgb(255, 107, 107),
-      l = rgb(255, 159, 243),
-      o = rgb(95, 39, 205),
-      s = rgb(0, 210, 211),
-      t = rgb(29, 209, 161),
-      z = rgb(52, 31, 151),
-    }
     -- Ignore empty blocks if not in grid
     if block == ' ' and not grid then
       return
@@ -450,7 +469,8 @@ function love.draw()
 
   -- Feedback text
   love.graphics.push()
-  love.graphics.setColor(1, 1, 1, score_feedback.opacity)
+  local r, g, b = unpack(state.warp_color)
+  love.graphics.setColor(r, g, b, score_feedback.opacity)
   love.graphics.print(
     score_feedback.text,
     window.w / 2,
@@ -464,9 +484,7 @@ function love.draw()
   love.graphics.pop()
   love.graphics.setColor(1, 1, 1)
 
-
   love.graphics.setCanvas()
-
 
   love.graphics.draw(background)
   if state.shake_duration > 0 then
