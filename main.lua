@@ -7,19 +7,6 @@ function love.load()
   love.graphics.setDefaultFilter("nearest", "nearest")
   love.graphics.setBackgroundColor(0, 0, 0)
 
-  _G.grid = {
-    x_count = 10,
-    y_count = 18
-  }
-
-  _G.window = {
-    w = love.graphics.getWidth(),
-    h = love.graphics.getHeight(),
-  }
-
-  _G.background = love.graphics.newCanvas(window.w, window.h)
-  _G.foreground = love.graphics.newCanvas(window.w, window.h)
-
   -- Monogram font
   -- https://datagoblin.itch.io/monogram
   _G.font = love.graphics.newFont('assets/monogram.ttf', 40)
@@ -38,48 +25,9 @@ function love.load()
   sfx.bg_music:setLooping(true)
   sfx.bg_music:play()
 
-  -- Chromatic aberration shader
+  -- Shaders
   _G.shaders = {
     chromatic_aberration = love.graphics.newShader("shaders/chromatic_aberration.frag"),
-  }
-
-  -- Calculate offsets and block size
-  _G.x_offset = window.w / 3
-
-  local x_block_size = x_offset / grid.x_count
-  local y_block_size = window.h / grid.y_count
-  _G.block_size = math.floor(math.min(x_block_size, y_block_size))
-
-  _G.y_offset = (window.h - block_size * grid.y_count) / 2
-
-  -- Background
-  _G.star_size = math.floor(block_size / 10)
-  _G.star_max_depth = 50
-  _G.star_min_depth = 15
-  local total_stars = math.floor((window.w + window.h) / 16)
-
-  function _G.generate_stars()
-    _G.stars = {}
-    for i = 0, total_stars do
-      table.insert(stars, {
-        love.math.random(window.w),                      -- x
-        love.math.random(window.h),                      -- y
-        love.math.random(star_min_depth, star_max_depth) -- z
-      })
-    end
-  end
-
-  -- https://flatuicolors.com/palette/ca
-  _G.color_keys = { 'i', 'j', 'l', 'o', 's', 't', 'z' }
-  _G.colors = {
-    [' '] = util.rgb(26, 26, 26),
-    i = util.rgb(72, 219, 251),
-    j = util.rgb(255, 107, 107),
-    l = util.rgb(255, 159, 243),
-    o = util.rgb(95, 39, 205),
-    s = util.rgb(0, 210, 211),
-    t = util.rgb(29, 209, 161),
-    z = util.rgb(52, 31, 151),
   }
 
   _G.state = {
@@ -106,8 +54,61 @@ function love.load()
     warp_color = { 1, 1, 1 }
   }
 
+  _G.grid = {
+    x_count = 10,
+    y_count = 18
+  }
+
+  _G.window = {
+    w = love.graphics.getWidth(),
+    h = love.graphics.getHeight(),
+  }
+
+  -- Calculate offsets and block size
+  _G.x_offset = window.w / 3
+
+  local x_block_size = x_offset / grid.x_count
+  local y_block_size = window.h / grid.y_count
+  _G.block_size = math.floor(math.min(x_block_size, y_block_size))
+
+  _G.y_offset = (window.h - block_size * grid.y_count) / 2
+
+  -- https://flatuicolors.com/palette/ca
+  _G.color_keys = { 'i', 'j', 'l', 'o', 's', 't', 'z' }
+  _G.colors = {
+    [' '] = util.rgb(26, 26, 26),
+    i = util.rgb(72, 219, 251),
+    j = util.rgb(255, 107, 107),
+    l = util.rgb(255, 159, 243),
+    o = util.rgb(95, 39, 205),
+    s = util.rgb(0, 210, 211),
+    t = util.rgb(29, 209, 161),
+    z = util.rgb(52, 31, 151),
+  }
+
   local text_scores = { "BOOSTING", "ULTRASPEED", "LIGHTSPEED", "WARPING" }
   _G.score_feedback = { text = "", scale = 5, opacity = 0, rotation = 0 }
+
+  -- Canvases
+  _G.background = love.graphics.newCanvas(window.w, window.h)
+  _G.foreground = love.graphics.newCanvas(window.w, window.h)
+
+  -- Background
+  _G.star_size = math.floor(block_size / 10)
+  _G.star_max_depth = 50
+  _G.star_min_depth = 15
+  local total_stars = math.floor((window.w + window.h) / 16)
+
+  function _G.generate_stars()
+    _G.stars = {}
+    for i = 0, total_stars do
+      table.insert(stars, {
+        love.math.random(window.w),                      -- x
+        love.math.random(window.h),                      -- y
+        love.math.random(star_min_depth, star_max_depth) -- z
+      })
+    end
+  end
 
   function _G.update_score(n)
     local scores = { 40, 100, 300, 1200 }
@@ -199,6 +200,7 @@ function love.load()
     generate_stars()
     new_sequence()
     reset_tile()
+    state.score = 0
     state.timer = 0
     state.camera_speed = 10
     state.camera_y = 0

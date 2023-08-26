@@ -1,6 +1,3 @@
--- https://love2d.org/wiki/fadeColor
--- Adapted to transition between two colors without transparent
-
 local function rgb(r, g, b)
   return {
     r / 255,
