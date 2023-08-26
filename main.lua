@@ -30,31 +30,33 @@ function love.load()
     chromatic_aberration = love.graphics.newShader("shaders/chromatic_aberration.frag"),
   }
 
-  _G.state = {
-    running = true,
-    timer = 0,
-    tile = love.math.random(#tiles),
-    pos_x = 0,
-    pos_y = 0,
-    rotation = 1,
-    score = 0,
-    gravity = 1,
+  _G.state = {}
 
-    min_camera_speed = 10,
-    max_camera_speed = 500,
-    camera_speed = 10,
-    camera_y = 0,
+  function _G.reset_state()
+    state.running = true
+    state.timer = 0
+    state.tile = love.math.random(#tiles)
+    state.pos_x = 0
+    state.pos_y = 0
+    state.rotation = 1
+    state.score = 0
+    state.gravity = 1
 
-    shake_duration = 0,
-    shake_wait = 0,
-    shake_offset = { x = 0, y = 0 },
+    state.min_camera_speed = 10
+    state.max_camera_speed = 500
+    state.camera_speed = 10
+    state.camera_y = 0
 
-    previous_warp = 0,
-    warping = false,
-    max_warp_duration = 1,
-    warp_duration = 0,
-    warp_color = { 1, 1, 1 }
-  }
+    state.shake_duration = 0
+    state.shake_wait = 0
+    state.shake_offset = { x = 0, y = 0 }
+
+    state.previous_warp = 0
+    state.warping = false
+    state.max_warp_duration = 1
+    state.warp_duration = 0
+    state.warp_color = { 1, 1, 1 }
+  end
 
   _G.grid = {
     x_count = 10,
@@ -199,15 +201,16 @@ function love.load()
       end
     end
 
+    reset_state()
     generate_stars()
     new_sequence()
     reset_tile()
     sfx.bg_music:play()
-    state.score = 0
-    state.timer = 0
-    state.camera_speed = 10
-    state.camera_y = 0
-    state.running = true
+    -- state.score = 0
+    -- state.timer = 0
+    -- state.camera_speed = 10
+    -- state.camera_y = 0
+    -- state.running = true
   end
 
   reset()
