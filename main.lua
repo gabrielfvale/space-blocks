@@ -49,13 +49,16 @@ function love.load()
   _G.star_max_depth = 50
   _G.star_min_depth = 15
   local total_stars = math.floor((window.w + window.h) / 16)
-  _G.stars = {}
-  for i = 0, total_stars do
-    table.insert(stars, {
-      love.math.random(window.w),                      -- x
-      love.math.random(window.h),                      -- y
-      love.math.random(star_min_depth, star_max_depth) -- z
-    })
+
+  function _G.generate_stars()
+    _G.stars = {}
+    for i = 0, total_stars do
+      table.insert(stars, {
+        love.math.random(window.w),                      -- x
+        love.math.random(window.h),                      -- y
+        love.math.random(star_min_depth, star_max_depth) -- z
+      })
+    end
   end
 
   _G.state = {
@@ -65,35 +68,36 @@ function love.load()
     pos_y = 0,
     rotation = 1,
     score = 0,
+
     min_camera_speed = 10,
     max_camera_speed = 500,
     camera_speed = 10,
     camera_y = 0,
+
     shake_duration = 0,
     shake_wait = 0,
     shake_offset = { x = 0, y = 0 },
+
+    previous_warp = 0,
     warping = false,
     warping_duration = 1,
   }
 
-  local text_scores = { "BOOSTING", "LIGHTSPEED", "HYPERSPEED", "WARPING" }
+  local text_scores = { "BOOSTING", "ULTRASPEED", "LIGHTSPEED", "WARPING" }
   _G.score_feedback = { text = "", scale = 5, opacity = 0, rotation = 0 }
 
   function _G.update_score(n)
     local scores = { 40, 100, 300, 1200 }
     state.score = state.score + scores[n]
     state.shake_duration = .2
+    score_feedback.text = text_scores[n]
 
     state.camera_speed = math.min(state.camera_speed + scores[n] / 10, state.max_camera_speed)
 
-    -- Update text
-    score_feedback.text = text_scores[n]
-    flux.to(score_feedback, .1, { scale = 3, opacity = 1 })
-        :after(score_feedback, .1, { scale = 4, opacity = 0 }):delay(1)
-        :after(score_feedback, 0, { scale = 5 })
-
-    -- Special effect for rare score
-    if n == 4 then -- Warp
+    -- Special effect for each 1000 points
+    if state.score - state.previous_warp >= 1000 then
+      score_feedback.text = text_scores[4]
+      state.previous_warp = state.previous_warp + 1000
       state.warping = true
       -- Keep previous speed
       local prev_speed = state.camera_speed
@@ -102,6 +106,11 @@ function love.load()
           :after(state, state.warping_duration, { camera_speed = 100 })
           :after(state, .1, { camera_speed = prev_speed })
     end
+
+    -- Update text
+    flux.to(score_feedback, .1, { scale = 3, opacity = 1 })
+        :after(score_feedback, .1, { scale = 4, opacity = 0 }):delay(1)
+        :after(score_feedback, 0, { scale = 5 })
   end
 
   function _G.can_move(pos_x, pos_y, r)
@@ -153,6 +162,7 @@ function love.load()
       end
     end
 
+    generate_stars()
     new_sequence()
     reset_tile()
 
@@ -177,7 +187,7 @@ function love.keypressed(k)
     local new_x = state.pos_x + 1
     if can_move(new_x, state.pos_y, state.rotation) then
       state.pos_x = new_x
-      update_score(4)
+      update_score(3)
     end
   elseif k == 's' then -- Drop
     while can_move(state.pos_x, state.pos_y + 1, state.rotation) do
@@ -245,6 +255,7 @@ function love.update(dt)
     elseif state.warping_duration < 0 then
       state.warping_duration = 1
       state.warping = false
+      generate_stars()
     end
   end
 
