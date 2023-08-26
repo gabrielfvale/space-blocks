@@ -48,6 +48,26 @@ function love.load()
     pos_y = 0,
     timer = 0
   }
+
+  function can_move(pos_x, pos_y, r)
+    for y = 1, 4 do
+      for x = 1, 4 do
+        local test_x = pos_x + x
+        local test_y = pos_y + y
+
+        if pieces[state.piece][r][y][x] ~= ' '
+            and (
+              (test_x) < 1 or              -- Left
+              (test_x) > grid.x_count or   -- Right
+              (test_y) > grid.y_count or   -- Bottom
+              inert[test_y][test_x] ~= ' ' -- Fixed blocks
+            ) then
+          return false
+        end
+      end
+    end
+    return true
+  end
 end
 
 function love.keypressed(k)
@@ -57,20 +77,40 @@ function love.keypressed(k)
 
   -- Move
   if k == 'a' then
-    state.pos_x = state.pos_x - 1
+    local new_x = state.pos_x - 1
+
+    if can_move(new_x, state.pos_y, state.rotation) then
+      state.pos_x = new_x
+    end
   elseif k == 'd' then
-    state.pos_x = state.pos_x + 1
+    local new_x = state.pos_x + 1
+    if can_move(new_x, state.pos_y, state.rotation) then
+      state.pos_x = new_x
+    end
+  elseif k == 's' then
+    while can_move(state.pos_x, state.pos_y + 1, state.rotation) do
+      state.pos_y = state.pos_y + 1
+    end
   end
+
   -- Rotate
   if k == "x" then
-    state.rotation = state.rotation + 1
-    if state.rotation > #pieces[state.piece] then
-      state.rotation = 1
+    local new_rotation = state.rotation + 1
+    if new_rotation > #pieces[state.piece] then
+      new_rotation = 1
+    end
+
+    if can_move(state.pos_x, state.pos_y, new_rotation) then
+      state.rotation = new_rotation
     end
   elseif k == "z" then
-    state.rotation = state.rotation - 1
-    if state.rotation < 1 then
-      state.rotation = #pieces[state.piece]
+    local new_rotation = state.rotation - 1
+    if new_rotation < 1 then
+      new_rotation = #pieces[state.piece]
+    end
+
+    if can_move(state.pos_x, state.pos_y, new_rotation) then
+      state.rotation = new_rotation
     end
   end
 end
@@ -79,7 +119,10 @@ function love.update(dt)
   state.timer = state.timer + dt
   if state.timer >= 0.5 then
     state.timer = 0
-    state.pos_y = state.pos_y + 1
+    local new_y = state.pos_y + 1
+    if can_move(state.pos_x, new_y, state.rotation) then
+      state.pos_y = new_y
+    end
   end
 end
 
