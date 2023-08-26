@@ -19,11 +19,11 @@ function love.load()
   _G.sfx = {
     bg_music = love.audio.newSource('assets/Billy\'s Sacrifice.mp3', 'static'),
     warp = love.audio.newSource('assets/1up2.ogg', 'static'),
-    score = love.audio.newSource('assets/Hit1.ogg', 'static')
+    score = love.audio.newSource('assets/Hit1.ogg', 'static'),
+    game_over = love.audio.newSource('assets/Lose1.ogg', 'static')
   }
   sfx.bg_music:setVolume(0.2)
   sfx.bg_music:setLooping(true)
-  sfx.bg_music:play()
 
   -- Shaders
   _G.shaders = {
@@ -31,6 +31,7 @@ function love.load()
   }
 
   _G.state = {
+    running = true,
     timer = 0,
     tile = love.math.random(#tiles),
     pos_x = 0,
@@ -201,10 +202,12 @@ function love.load()
     generate_stars()
     new_sequence()
     reset_tile()
+    sfx.bg_music:play()
     state.score = 0
     state.timer = 0
     state.camera_speed = 10
     state.camera_y = 0
+    state.running = true
   end
 
   reset()
@@ -213,6 +216,8 @@ end
 function love.keypressed(k)
   if k == "escape" then
     love.event.push('quit')
+  elseif k == "space" and not state.running then
+    reset()
   end
 
   -- Move
@@ -269,8 +274,15 @@ end
 
 function love.update(dt)
   flux.update(dt)
-  if not can_move(state.pos_x, state.pos_y, state.rotation) then
-    reset()
+  if state.running and
+      not can_move(state.pos_x, state.pos_y, state.rotation) then
+    state.running = false
+    sfx.bg_music:stop()
+    sfx.game_over:play()
+  end
+
+  if not state.running then
+    return
   end
 
   -- Update camera and timer
@@ -513,4 +525,25 @@ function love.draw()
   end
   love.graphics.draw(foreground)
   love.graphics.setShader()
+
+  -- Game over
+  if not state.running then
+    love.graphics.push()
+    love.graphics.setColor(0, 0, 0, .75)
+    love.graphics.rectangle("fill", 0, 0, window.w, window.h)
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.print(
+      "GAME OVER",
+      window.w / 2, window.h / 2, 0, 1, 1,
+      (font:getWidth("GAME OVER") / 2),
+      (font:getHeight() / 2)
+    )
+    love.graphics.print(
+      "PRESS SPACE TO RESTART",
+      window.w / 2, window.h / 2 + font:getHeight(), 0, 1, 1,
+      (font:getWidth("PRESS SPACE TO RESTART") / 2),
+      (font:getHeight() / 2)
+    )
+    love.graphics.pop()
+  end
 end
