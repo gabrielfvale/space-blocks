@@ -29,6 +29,7 @@ function love.load()
   -- https://www.youtube.com/user/AntiMulletpunk
   _G.bg_music = love.audio.newSource('assets/Billy\'s Sacrifice.mp3', 'static')
   bg_music:setVolume(0.2)
+  bg_music:setLooping(true)
   bg_music:play()
 
   -- Chromatic aberration shader
