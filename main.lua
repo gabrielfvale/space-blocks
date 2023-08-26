@@ -7,9 +7,28 @@ function love.load()
   love.graphics.setDefaultFilter("nearest", "nearest")
   love.graphics.setBackgroundColor(0, 0, 0)
 
+  _G.grid = {
+    x_count = 10,
+    y_count = 18
+  }
+
+  _G.window = {
+    w = love.graphics.getWidth(),
+    h = love.graphics.getHeight(),
+  }
+
+  -- Calculate offsets and block size
+  _G.x_offset = window.w / 3
+
+  local x_block_size = x_offset / grid.x_count
+  local y_block_size = window.h / grid.y_count
+  _G.block_size = math.floor(math.min(x_block_size, y_block_size))
+
+  _G.y_offset = (window.h - block_size * grid.y_count) / 2
+
   -- Monogram font
   -- https://datagoblin.itch.io/monogram
-  _G.font = love.graphics.newFont('assets/monogram.ttf', 40)
+  _G.font = love.graphics.newFont('assets/monogram.ttf', block_size * 1.5)
   love.graphics.setFont(font)
 
   -- Music by DOS-88
@@ -58,25 +77,6 @@ function love.load()
     state.warp_color = { 1, 1, 1 }
   end
 
-  _G.grid = {
-    x_count = 10,
-    y_count = 18
-  }
-
-  _G.window = {
-    w = love.graphics.getWidth(),
-    h = love.graphics.getHeight(),
-  }
-
-  -- Calculate offsets and block size
-  _G.x_offset = window.w / 3
-
-  local x_block_size = x_offset / grid.x_count
-  local y_block_size = window.h / grid.y_count
-  _G.block_size = math.floor(math.min(x_block_size, y_block_size))
-
-  _G.y_offset = (window.h - block_size * grid.y_count) / 2
-
   -- https://flatuicolors.com/palette/ca
   _G.color_keys = { 'i', 'j', 'l', 'o', 's', 't', 'z' }
   _G.colors = {
@@ -98,7 +98,7 @@ function love.load()
   _G.foreground = love.graphics.newCanvas(window.w, window.h)
 
   -- Background
-  _G.star_size = math.floor(block_size / 10)
+  _G.star_size = 2
   _G.star_max_depth = 50
   _G.star_min_depth = 15
   local total_stars = math.floor((window.w + window.h) / 16)
@@ -206,11 +206,6 @@ function love.load()
     new_sequence()
     reset_tile()
     sfx.bg_music:play()
-    -- state.score = 0
-    -- state.timer = 0
-    -- state.camera_speed = 10
-    -- state.camera_y = 0
-    -- state.running = true
   end
 
   reset()
@@ -285,6 +280,7 @@ function love.update(dt)
   end
 
   if not state.running then
+    state.camera_y = state.camera_y - 10 * dt
     return
   end
 
