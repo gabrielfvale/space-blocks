@@ -49,15 +49,6 @@ function love.load()
     })
   end
 
-  --
-  _G.inert = {}
-  for y = 1, grid.y_count do
-    inert[y] = {}
-    for x = 1, grid.x_count do
-      inert[y][x] = ' '
-    end
-  end
-
   _G.state = {
     tile = love.math.random(#tiles),
     rotation = 1,
@@ -65,8 +56,14 @@ function love.load()
     pos_y = 0,
     timer = 0,
     camera_y = 0,
-    camera_speed = 10
+    camera_speed = 10,
+    score = 0
   }
+
+  function _G.update_score(n)
+    local scores = { 40, 100, 300, 1200 }
+    state.score = state.score + scores[n]
+  end
 
   function _G.can_move(pos_x, pos_y, r)
     for y = 1, 4 do
@@ -107,8 +104,23 @@ function love.load()
     end
   end
 
-  new_sequence()
-  reset_tile()
+  function _G.reset()
+    --
+    _G.inert = {}
+    for y = 1, grid.y_count do
+      inert[y] = {}
+      for x = 1, grid.x_count do
+        inert[y][x] = ' '
+      end
+    end
+
+    new_sequence()
+    reset_tile()
+
+    state.timer = 0
+  end
+
+  reset()
 end
 
 function love.keypressed(k)
@@ -172,6 +184,11 @@ end
 function love.update(dt)
   state.camera_y = state.camera_y + state.camera_speed * dt
   state.timer = state.timer + dt
+
+  if not can_move(state.pos_x, state.pos_y, state.rotation) then
+    reset()
+  end
+
   if state.timer >= 0.5 then
     state.timer = 0
     local new_y = state.pos_y + 1
@@ -189,6 +206,7 @@ function love.update(dt)
       end
 
       -- Complete rows
+      local total_complete = 0
       for y = 1, grid.y_count do
         local complete = true
         for x = 1, grid.x_count do
@@ -199,6 +217,7 @@ function love.update(dt)
         end
 
         if complete then
+          total_complete = total_complete + 1
           for ry = y, 2, -1 do
             for rx = 1, grid.x_count do
               inert[ry][rx] = inert[ry - 1][rx]
@@ -210,6 +229,14 @@ function love.update(dt)
           end
         end
       end
+
+      if total_complete > 0 then
+        -- Not sure if it's possible to complete
+        -- more than 4 lines in a row, but just in case
+        update_score(math.min(total_complete, 4)) --
+        total_complete = 0
+      end
+
       reset_tile()
     end
   end
@@ -228,7 +255,7 @@ function love.draw()
     grid = grid or false
     -- https://flatuicolors.com/palette/ca
     local colors = {
-      [' '] = { .5, .5, .5 },
+      [' '] = rgb(26, 26, 26),
       i = rgb(72, 219, 251),
       j = rgb(255, 107, 107),
       l = rgb(255, 159, 243),
@@ -243,16 +270,18 @@ function love.draw()
     end
 
     local color = colors[block]
-    love.graphics.setColor(color)
-
     local block_draw_size = block_size - 1
+
+    love.graphics.push()
+    love.graphics.setColor(color)
     love.graphics.rectangle(
       'fill',
-      (x - 1) * block_size + window.w / 3,
+      (x - 1) * block_size + x_offset,
       (y - 1) * block_size + y_offset,
       block_draw_size,
       block_draw_size
     )
+    love.graphics.pop()
   end
 
   -- Background
@@ -271,6 +300,21 @@ function love.draw()
   end
   love.graphics.pop()
 
+  -- Grid
+  for y = 1, grid.y_count do
+    for x = 1, grid.x_count do
+      draw_block(inert[y][x], x, y, true)
+    end
+  end
+  -- Tile
+  for y = 1, 4 do
+    for x = 1, 4 do
+      local block = tiles[state.tile][state.rotation][y][x]
+      draw_block(block, x + state.pos_x, y + state.pos_y)
+    end
+  end
+
+  -- UI --
   -- Volume bar
   love.graphics.push()
   love.graphics.setColor(1, 1, 1)
@@ -280,17 +324,33 @@ function love.draw()
   end
   love.graphics.pop()
 
-  -- Grid
-  for y = 1, grid.y_count do
-    for x = 1, grid.x_count do
-      draw_block(inert[y][x], x, y, true)
-    end
-  end
-  -- Piece
+  local x_col_offset = 2
+  -- Score
+  love.graphics.push()
+  love.graphics.setColor(1, 1, 1)
+  love.graphics.print(
+    "SCORE",
+    block_size * (grid.x_count + x_col_offset) + x_offset,
+    y_offset + block_size * 3
+  )
+  love.graphics.print(
+    string.format("%d", state.score),
+    block_size * (grid.x_count + x_col_offset) + x_offset,
+    y_offset + block_size * 4
+  )
+  -- Next tile
+  love.graphics.print(
+    "NEXT",
+    block_size * (grid.x_count + x_col_offset) + x_offset,
+    y_offset + block_size * 8
+  )
+  love.graphics.pop()
   for y = 1, 4 do
     for x = 1, 4 do
-      local block = tiles[state.tile][state.rotation][y][x]
-      draw_block(block, x + state.pos_x, y + state.pos_y)
+      local block = tiles[sequence[#sequence]][1][y][x]
+      if block ~= ' ' then
+        draw_block(block, x + grid.x_count + x_col_offset, y + 9)
+      end
     end
   end
 end
