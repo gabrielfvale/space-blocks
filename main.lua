@@ -56,6 +56,7 @@ function love.load()
 
   function _G.reset_state()
     state.running = true
+    state.preview_enabled = false
     state.timer = 0
     state.tile = love.math.random(#tiles)
     state.pos_x = 0
@@ -67,7 +68,7 @@ function love.load()
     state.prev_level = 1
     state.level = 1
     state.lines = 0
-    state.lines_per_level = 2
+    state.lines_per_level = 10
 
     state.min_camera_speed = 10
     state.max_camera_speed = 500
@@ -107,6 +108,7 @@ function love.load()
     s = util.rgb(0, 210, 211),
     t = util.rgb(29, 209, 161),
     z = util.rgb(52, 31, 151),
+    preview = { 1, 1, 1, 0.05 }
   }
 
   local text_scores = { "BOOSTING", "ULTRASPEED", "LIGHTSPEED", "WARPING" }
@@ -252,13 +254,14 @@ function love.load()
 end
 
 function love.keypressed(k)
+  -- Events
   if k == "escape" then
     love.event.push('quit')
   elseif k == "space" and not state.running then
     reset()
   end
 
-  -- Move
+  -- Movement
   if k == 'a' then -- Left
     local new_x = state.pos_x - 1
     if can_move(new_x, state.pos_y, state.rotation) then
@@ -271,7 +274,7 @@ function love.keypressed(k)
     end
   end
 
-  -- Rotate
+  -- Rotation
   if k == "x" then
     local new_rotation = state.rotation + 1
     if new_rotation > #tiles[state.tile] then
@@ -299,12 +302,12 @@ function love.keypressed(k)
     else
       get_music():setVolume(0.2)
     end
-  elseif k == "left" then
-    get_music():setVolume(math.min(get_music():getVolume() - .2, 1))
-  elseif k == "right" then
-    get_music():setVolume(math.min(get_music():getVolume() + .2, 1))
   end
 
+  -- Misc/debug
+  if k == "p" then
+    state.preview_enabled = not state.preview_enabled
+  end
   if k == "w" then
     update_score(4)
   end
@@ -494,6 +497,22 @@ function love.draw()
       draw_block(inert[y][x], x, y, true)
     end
   end
+  -- Preview
+  if state.preview_enabled then
+    local preview_y = state.pos_y
+    while can_move(state.pos_x, preview_y, state.rotation) do
+      preview_y = preview_y + 1
+    end
+    for y = 1, 4 do
+      for x = 1, 4 do
+        local block = tiles[state.tile][state.rotation][y][x]
+        if block ~= ' ' then
+          draw_block('preview', x + state.pos_x, y + preview_y - 1)
+        end
+      end
+    end
+  end
+
   -- Tile
   for y = 1, 4 do
     for x = 1, 4 do
