@@ -58,8 +58,13 @@ function love.load()
     state.pos_x = 0
     state.pos_y = 0
     state.rotation = 1
-    state.score = 0
     state.gravity = 1
+
+    state.score = 0
+    state.prev_level = 1
+    state.level = 1
+    state.lines = 0
+    state.lines_per_level = 2
 
     state.min_camera_speed = 10
     state.max_camera_speed = 500
@@ -114,10 +119,58 @@ function love.load()
     end
   end
 
+  -- Creates a random tile sequence
+  function _G.new_sequence()
+    _G.sequence = {}
+    for tile_index = 1, #tiles do
+      local pos = love.math.random(#sequence + 1)
+      table.insert(sequence, pos, tile_index)
+    end
+  end
+
+  function _G.reset_tile()
+    state.tile = table.remove(sequence)
+    state.rotation = 1
+    state.pos_x = (grid.x_count - 4) / 2
+    state.pos_y = -1
+
+    if #sequence == 0 then
+      new_sequence()
+    end
+  end
+
+  function _G.reset(keep_state)
+    keep_state = keep_state or false
+    if not keep_state then reset_state() end
+
+    _G.inert = {}
+    for y = 1, grid.y_count do
+      inert[y] = {}
+      for x = 1, grid.x_count do
+        inert[y][x] = ' '
+      end
+    end
+
+    generate_stars()
+    new_sequence()
+    reset_tile()
+    sfx.bg_music:play()
+  end
+
   function _G.update_score(n)
     local scores = { 40, 100, 300, 1200 }
-    state.score = state.score + scores[n]
+    state.score = state.score + state.level * scores[n]
+    state.lines = state.lines + n
     score_feedback.text = text_scores[n]
+
+    -- Check for level up
+    local levelup = false
+    if state.lines >= state.lines_per_level then
+      state.prev_level = state.level
+      state.level = state.level + 1
+      state.lines = 0
+      levelup = true
+    end
 
     -- Start screen shake
     state.shake_duration = .2
@@ -125,9 +178,13 @@ function love.load()
     -- Update camera speed based on score
     state.camera_speed = math.min(state.camera_speed + scores[n] / 10, state.max_camera_speed)
 
-    -- Special effect for each 1000 points
-    if state.score - state.previous_warp >= 1000 then
-      score_feedback.text = text_scores[4]
+    -- Special effect for each 1000 points/levelup
+    if levelup or state.score - state.previous_warp >= 1000 then
+      if levelup then
+        score_feedback.text = "LEVEL UP"
+      else
+        score_feedback.text = text_scores[4]
+      end
       state.previous_warp = state.previous_warp + 1000
       state.warping = true
       state.shake_duration = state.max_warp_duration
@@ -144,10 +201,14 @@ function love.load()
     flux.to(score_feedback, .1, { scale = 3, opacity = 1 })
         :after(score_feedback, .1, { scale = 4, opacity = 0 }):delay(state.max_warp_duration)
         :after(score_feedback, 0, { scale = 5 })
-    if n < 4 then
-      sfx.score:play()
-    else
+    if levelup or n == 4 then
       sfx.warp:play()
+    else
+      sfx.score:play()
+    end
+
+    if levelup then
+      reset(true)
     end
   end
 
@@ -170,42 +231,6 @@ function love.load()
       end
     end
     return true
-  end
-
-  -- Creates a random tile sequence
-  function _G.new_sequence()
-    _G.sequence = {}
-    for tile_index = 1, #tiles do
-      local pos = love.math.random(#sequence + 1)
-      table.insert(sequence, pos, tile_index)
-    end
-  end
-
-  function _G.reset_tile()
-    state.tile = table.remove(sequence)
-    state.rotation = 1
-    state.pos_x = (grid.x_count - 4) / 2
-    state.pos_y = -1
-
-    if #sequence == 0 then
-      new_sequence()
-    end
-  end
-
-  function _G.reset()
-    _G.inert = {}
-    for y = 1, grid.y_count do
-      inert[y] = {}
-      for x = 1, grid.x_count do
-        inert[y][x] = ' '
-      end
-    end
-
-    reset_state()
-    generate_stars()
-    new_sequence()
-    reset_tile()
-    sfx.bg_music:play()
   end
 
   reset()
@@ -286,7 +311,7 @@ function love.update(dt)
 
   -- Update camera and timer
   state.camera_y = state.camera_y + state.camera_speed * dt
-  state.timer = state.timer + state.gravity * dt
+  state.timer = state.timer + state.gravity * state.level * dt
 
   -- Screenshake
   if state.shake_duration > 0 then
