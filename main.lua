@@ -28,21 +28,24 @@ function love.load()
 
   -- Monogram font
   -- https://datagoblin.itch.io/monogram
-  _G.font = love.graphics.newFont('assets/monogram.ttf', block_size * 1.5)
+  _G.font = love.graphics.newFont('assets/fonts/monogram.ttf', block_size * 1.5)
   love.graphics.setFont(font)
 
   -- Music by DOS-88
   -- https://www.youtube.com/user/AntiMulletpunk
+  _G.soundtrack = {}
+  local files = love.filesystem.getDirectoryItems("assets/soundtrack")
+  for _, file in ipairs(files) do
+    table.insert(soundtrack, love.audio.newSource('assets/soundtrack/' .. file, 'static'))
+  end
+
   -- SFX by phoenix1291
   -- https://phoenix1291.itch.io/sound-effects-mini-pack1-5
   _G.sfx = {
-    bg_music = love.audio.newSource('assets/Billy\'s Sacrifice.mp3', 'static'),
-    warp = love.audio.newSource('assets/1up2.ogg', 'static'),
-    score = love.audio.newSource('assets/Hit1.ogg', 'static'),
-    game_over = love.audio.newSource('assets/Lose1.ogg', 'static')
+    warp = love.audio.newSource('assets/sfx/1up2.ogg', 'static'),
+    score = love.audio.newSource('assets/sfx/Hit1.ogg', 'static'),
+    game_over = love.audio.newSource('assets/sfx/Lose1.ogg', 'static')
   }
-  sfx.bg_music:setVolume(0.2)
-  sfx.bg_music:setLooping(true)
 
   -- Shaders
   _G.shaders = {
@@ -81,6 +84,17 @@ function love.load()
     state.warp_duration = 0
     state.warp_color = { 1, 1, 1 }
   end
+
+  reset_state()
+
+  function _G.get_music()
+    local current_soundtrack = state.level % #soundtrack
+    if current_soundtrack == 0 then current_soundtrack = #soundtrack end
+    return soundtrack[current_soundtrack]
+  end
+
+  get_music():setVolume(0.2)
+  get_music():setLooping(true)
 
   -- https://flatuicolors.com/palette/ca
   _G.color_keys = { 'i', 'j', 'l', 'o', 's', 't', 'z' }
@@ -154,7 +168,7 @@ function love.load()
     generate_stars()
     new_sequence()
     reset_tile()
-    sfx.bg_music:play()
+    get_music():play()
   end
 
   function _G.update_score(n)
@@ -166,6 +180,7 @@ function love.load()
     -- Check for level up
     local levelup = false
     if state.lines >= state.lines_per_level then
+      get_music():stop()
       state.prev_level = state.level
       state.level = state.level + 1
       state.lines = 0
@@ -279,15 +294,15 @@ function love.keypressed(k)
 
   -- Music
   if k == "m" then
-    if sfx.bg_music:getVolume() > 0 then
-      sfx.bg_music:setVolume(0)
+    if get_music():getVolume() > 0 then
+      get_music():setVolume(0)
     else
-      sfx.bg_music:setVolume(0.2)
+      get_music():setVolume(0.2)
     end
   elseif k == "left" then
-    sfx.bg_music:setVolume(math.min(sfx.bg_music:getVolume() - .2, 1))
+    get_music():setVolume(math.min(get_music():getVolume() - .2, 1))
   elseif k == "right" then
-    sfx.bg_music:setVolume(math.min(sfx.bg_music:getVolume() + .2, 1))
+    get_music():setVolume(math.min(get_music():getVolume() + .2, 1))
   end
 
   if k == "w" then
@@ -300,7 +315,7 @@ function love.update(dt)
   if state.running and
       not can_move(state.pos_x, state.pos_y, state.rotation) then
     state.running = false
-    sfx.bg_music:stop()
+    get_music():stop()
     sfx.game_over:play()
   end
 
@@ -491,7 +506,7 @@ function love.draw()
   -- Volume bar
   love.graphics.setColor(1, 1, 1)
   local volume_w = block_size / 4
-  for i = 1, sfx.bg_music:getVolume() * 10 do
+  for i = 1, get_music():getVolume() * 10 do
     love.graphics.rectangle('fill', (i - 1) * (volume_w + 2), 0, volume_w, block_size)
   end
 
